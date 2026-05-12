@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+
+    <!-- Fires after any product is saved (create or update) -->
+    <event name="catalog_product_save_after">
+        <observer name="storeportal_product_save"
+                  instance="StorePortal\Connector\Observer\ProductSave"/>
+    </event>
+
+    <!-- Fires after a product is deleted -->
+    <event name="catalog_product_delete_after">
+        <observer name="storeportal_product_delete"
+                  instance="StorePortal\Connector\Observer\ProductDelete"/>
+    </event>
+
+</config>

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="StorePortal_AdminEmbed::portal"
+             title="Store Portal"
+             module="StorePortal_AdminEmbed"
+             parent="Magento_Backend::stores"
+             sortOrder="100"
+             resource="StorePortal_AdminEmbed::manage"
+             action="storeportal_embed/index/index"/>
+    </menu>
+</config>

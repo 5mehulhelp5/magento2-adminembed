@@ -1,0 +1,31 @@
+{
+    "name": "storeportal/magento2-adminembed",
+    "description": "Embeds the Store Portal dashboard inside Magento 2 Admin",
+    "type": "magento2-module",
+    "version": "1.0.0",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Store Portal",
+            "email": "etechflow0@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "magento/framework": "*",
+        "magento/module-backend": "*"
+    },
+    "autoload": {
+        "files": [
+            "StorePortal/AdminEmbed/registration.php"
+        ],
+        "psr-4": {
+            "StorePortal\\AdminEmbed\\": "StorePortal/AdminEmbed/"
+        }
+    },
+    "extra": {
+        "map": [
+            ["StorePortal/AdminEmbed", "StorePortal/AdminEmbed"]
+        ]
+    }
+}
