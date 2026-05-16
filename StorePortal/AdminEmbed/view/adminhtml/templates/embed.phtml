@@ -1,34 +1,41 @@
 <?php
 /**
- * Store Portal embed template.
- * Loads the portal dashboard inside Magento Admin via an auto-login iframe.
+ * Store Portal embed template — shared by Dashboard, Auto Sync, and Bulk Sync pages.
+ * Pass data argument "portal_path" from layout XML to control which portal page loads.
  *
  * @var \Magento\Backend\Block\Template $block
  */
 $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
 /** @var \StorePortal\AdminEmbed\Helper\Token $tokenHelper */
-$tokenHelper = $objectManager->get(\StorePortal\AdminEmbed\Helper\Token::class);
-$iframeUrl   = $tokenHelper->getIframeUrl('/dashboard');
-$portalUrl   = $tokenHelper->getPortalUrl();
+$tokenHelper  = $objectManager->get(\StorePortal\AdminEmbed\Helper\Token::class);
+$portalPath   = $block->getData('portal_path') ?: '/dashboard';
+$iframeUrl    = $tokenHelper->getIframeUrl($portalPath);
+$portalUrl    = $tokenHelper->getPortalUrl();
 ?>
 <style>
+  /* ── Container ── */
   #sp-wrap {
     position: relative;
     width: 100%;
-    height: calc(100vh - 140px);
-    min-height: 620px;
-    background: #f0f0f1;
-    border: 1px solid #dcdcde;
-    border-radius: 4px;
+    height: calc(100vh - 110px);
+    min-height: 560px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
     overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
   }
+
+  /* ── Iframe ── */
   #sp-frame {
     width: 100%;
     height: 100%;
     border: none;
     opacity: 0;
-    transition: opacity .3s;
+    transition: opacity .35s ease;
   }
+
+  /* ── Loading overlay ── */
   #sp-loading {
     position: absolute;
     inset: 0;
@@ -36,49 +43,83 @@ $portalUrl   = $tokenHelper->getPortalUrl();
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: #f0f0f1;
-    color: #787c82;
+    background: #f8fafc;
     gap: 1rem;
     pointer-events: none;
   }
   .sp-spinner {
-    width: 32px; height: 32px;
-    border: 3px solid #dcdcde;
-    border-top-color: #2271b1;
+    width: 36px; height: 36px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #4f8ef7;
     border-radius: 50%;
-    animation: sp-spin .8s linear infinite;
+    animation: sp-spin .75s linear infinite;
   }
   @keyframes sp-spin { to { transform: rotate(360deg); } }
+  .sp-loading-text {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: .875rem;
+    color: #94a3b8;
+    font-weight: 500;
+    letter-spacing: .01em;
+  }
+
+  /* ── Error card ── */
   #sp-error {
     display: none;
     text-align: center;
     padding: 3rem 2rem;
     background: #fff;
-    border: 1px solid #dcdcde;
-    border-radius: 4px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
   }
-  #sp-error h2 { color: #1d2327; font-size: 1.2rem; margin-bottom: .5rem; }
-  #sp-error p  { color: #787c82; font-size: .9rem; margin-bottom: 1.2rem; }
+  .sp-error-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+  #sp-error h2 {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #1e293b; font-size: 1.1rem; font-weight: 700; margin-bottom: .45rem;
+  }
+  #sp-error p {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #64748b; font-size: .875rem; margin-bottom: 1.25rem; line-height: 1.5;
+  }
+  .sp-error-url {
+    display: inline-block;
+    background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px;
+    padding: .3rem .7rem; font-size: .78rem; color: #475569;
+    font-family: monospace; margin-bottom: 1.25rem;
+  }
+  .sp-btn-open {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: linear-gradient(135deg, #4f8ef7, #7c3aed);
+    color: #fff; border: none; border-radius: 8px;
+    padding: .55rem 1.25rem; font-size: .875rem; font-weight: 600;
+    text-decoration: none; cursor: pointer;
+    transition: opacity .15s, transform .15s;
+  }
+  .sp-btn-open:hover { opacity: .88; transform: translateY(-1px); }
 </style>
 
 <div id="sp-wrap">
   <iframe id="sp-frame"
           src="<?= $block->escapeUrl($iframeUrl) ?>"
-          title="Store Portal Dashboard"
+          title="Store Portal"
           frameborder="0"
           allowfullscreen>
   </iframe>
   <div id="sp-loading">
     <div class="sp-spinner"></div>
-    <p>Loading Store Portal…</p>
+    <span class="sp-loading-text">Loading Store Portal…</span>
   </div>
 </div>
 
 <div id="sp-error">
-  <h2>⚠ Could not load Store Portal</h2>
-  <p>Make sure the Store Portal server is running at <strong><?= $block->escapeHtml($portalUrl) ?></strong></p>
-  <a href="<?= $block->escapeUrl($iframeUrl) ?>" target="_blank" class="action-primary">
-    Open in new tab ↗
+  <div class="sp-error-icon">⚠️</div>
+  <h2>Could not connect to Store Portal</h2>
+  <p>Make sure the Store Portal server is running.</p>
+  <div class="sp-error-url"><?= $block->escapeHtml($portalUrl) ?></div>
+  <br/>
+  <a href="<?= $block->escapeUrl($iframeUrl) ?>" target="_blank" class="sp-btn-open">
+    Open in New Tab ↗
   </a>
 </div>
 
@@ -93,18 +134,17 @@ $portalUrl   = $tokenHelper->getPortalUrl();
   function onLoad() {
     clearTimeout(timer);
     loading.style.display = 'none';
-    frame.style.opacity = '1';
+    frame.style.opacity   = '1';
   }
 
   function onError() {
     clearTimeout(timer);
-    wrap.style.display = 'none';
+    wrap.style.display   = 'none';
     errBox.style.display = 'block';
   }
 
-  // Timeout fallback: if iframe hasn't loaded in 15s, show error
   timer = setTimeout(onError, 15000);
-  frame.addEventListener('load', onLoad);
+  frame.addEventListener('load',  onLoad);
   frame.addEventListener('error', onError);
 })();
 </script>

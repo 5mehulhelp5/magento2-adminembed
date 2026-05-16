@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd"
+      layout="admin-1column">
+    <body>
+        <referenceContainer name="content">
+            <block class="Magento\Backend\Block\Template"
+                   name="storeportal.autosync"
+                   template="StorePortal_AdminEmbed::embed.phtml">
+                <arguments>
+                    <argument name="portal_path" xsi:type="string">/auto-sync</argument>
+                </arguments>
+            </block>
+        </referenceContainer>
+    </body>
+</page>

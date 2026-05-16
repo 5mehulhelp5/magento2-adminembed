@@ -2,12 +2,48 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
     <menu>
+        <!-- Parent: Store Portal (no action — expands to show children) -->
         <add id="StorePortal_AdminEmbed::portal"
              title="Store Portal"
              module="StorePortal_AdminEmbed"
              parent="Magento_Backend::stores"
              sortOrder="100"
+             resource="StorePortal_AdminEmbed::manage"/>
+
+        <!-- Child: Dashboard -->
+        <add id="StorePortal_AdminEmbed::dashboard"
+             title="Dashboard"
+             module="StorePortal_AdminEmbed"
+             parent="StorePortal_AdminEmbed::portal"
+             sortOrder="10"
              resource="StorePortal_AdminEmbed::manage"
              action="storeportal_embed/index/index"/>
+
+        <!-- Child: Auto Sync Rules -->
+        <add id="StorePortal_AdminEmbed::autosync"
+             title="Auto Sync Rules"
+             module="StorePortal_AdminEmbed"
+             parent="StorePortal_AdminEmbed::portal"
+             sortOrder="20"
+             resource="StorePortal_AdminEmbed::manage"
+             action="storeportal_embed/autosync/index"/>
+
+        <!-- Child: Bulk Sync -->
+        <add id="StorePortal_AdminEmbed::bulksync"
+             title="Bulk Sync"
+             module="StorePortal_AdminEmbed"
+             parent="StorePortal_AdminEmbed::portal"
+             sortOrder="30"
+             resource="StorePortal_AdminEmbed::manage"
+             action="storeportal_embed/bulksync/index"/>
+
+        <!-- Child: Settings (links to Magento config section) -->
+        <add id="StorePortal_AdminEmbed::settings"
+             title="Portal Settings"
+             module="StorePortal_AdminEmbed"
+             parent="StorePortal_AdminEmbed::portal"
+             sortOrder="40"
+             resource="StorePortal_AdminEmbed::config"
+             action="adminhtml/system_config/edit/section/storeportal"/>
     </menu>
 </config>
