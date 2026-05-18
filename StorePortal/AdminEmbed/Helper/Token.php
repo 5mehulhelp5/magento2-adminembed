@@ -8,17 +8,12 @@ use Magento\Backend\Model\UrlInterface;
 
 class Token extends AbstractHelper
 {
-    /**
-     * Must match WP_PLUGIN_API_KEY in your Flask .env file.
-     * Change this if you updated WP_PLUGIN_API_KEY.
-     */
-    const API_KEY = 'StorePortalWpKey2026Mazhar';
+    const XML_PATH_PORTAL_URL = 'storeportal/general/portal_url';
+    const XML_PATH_API_KEY    = 'storeportal/general/api_key';
 
-    /**
-     * Your Store Portal URL (same as APP_URL in Flask .env).
-     * Change this when your ngrok URL changes.
-     */
-    const PORTAL_URL = 'https://nonanarchically-rambunctious-lashay.ngrok-free.dev';
+    // Fallback defaults — used when no value is saved in admin
+    const DEFAULT_PORTAL_URL = 'http://localhost:5000';
+    const DEFAULT_API_KEY    = 'StorePortalWpKey2026Mazhar';
 
     protected $storeManager;
     protected $backendUrl;
@@ -31,24 +26,31 @@ class Token extends AbstractHelper
         parent::__construct($context);
         $this->storeManager = $storeManager;
         $this->backendUrl   = $backendUrl;
+        // $this->scopeConfig is already available via AbstractHelper/Context
     }
 
     public function getPortalUrl(): string
     {
-        return rtrim(self::PORTAL_URL, '/');
+        $url = $this->scopeConfig->getValue(self::XML_PATH_PORTAL_URL);
+        return rtrim($url ?: self::DEFAULT_PORTAL_URL, '/');
+    }
+
+    public function getApiKey(): string
+    {
+        $key = $this->scopeConfig->getValue(self::XML_PATH_API_KEY);
+        return $key ?: self::DEFAULT_API_KEY;
     }
 
     /**
      * Generate a signed auto-login token.
-     * Format matches the WordPress plugin token so Flask can verify both.
-     * Token: base64(store_url|timestamp|HMAC-SHA256(store_url|timestamp, API_KEY))
+     * Token: base64(store_url|timestamp|HMAC-SHA256(store_url|timestamp, api_key))
      */
     public function generateToken(): string
     {
         $storeUrl  = $this->storeManager->getStore()->getBaseUrl();
         $timestamp = time();
         $payload   = $storeUrl . '|' . $timestamp;
-        $sig       = hash_hmac('sha256', $payload, self::API_KEY);
+        $sig       = hash_hmac('sha256', $payload, $this->getApiKey());
         return base64_encode($payload . '|' . $sig);
     }
 

@@ -7,6 +7,9 @@
                 <resource id="StorePortal_AdminEmbed::manage"
                           title="Store Portal"
                           sortOrder="100"/>
+                <resource id="StorePortal_AdminEmbed::config"
+                          title="Store Portal Configuration"
+                          sortOrder="110"/>
             </resource>
         </resources>
     </acl>
