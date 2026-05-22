@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace StorePortal\AdminEmbed\Helper;
 
 use Magento\Framework\App\Helper\AbstractHelper;
@@ -8,35 +11,26 @@ use Magento\Backend\Model\UrlInterface;
 use Magento\Framework\HTTP\Client\Curl;
 use Magento\Backend\Model\Auth\Session as AdminSession;
 use Magento\Integration\Model\Oauth\TokenFactory;
+use Magento\Store\Model\ScopeInterface;
 
 class Token extends AbstractHelper
 {
-    const XML_PATH_PORTAL_URL = 'storeportal/general/portal_url';
-    const XML_PATH_API_KEY    = 'storeportal/general/api_key';
+    const XML_PATH_PORTAL_URL   = 'storeportal/general/portal_url';
+    const XML_PATH_API_KEY      = 'storeportal/general/api_key';
+    const XML_PATH_LICENSE_KEY  = 'storeportal/license/license_key';
 
     const DEFAULT_PORTAL_URL = 'http://localhost:5000';
     const DEFAULT_API_KEY    = 'StorePortalWpKey2026Mazhar';
 
-    protected $storeManager;
-    protected $backendUrl;
-    protected $curl;
-    protected $adminSession;
-    protected $tokenFactory;
-
     public function __construct(
         Context $context,
-        StoreManagerInterface $storeManager,
-        UrlInterface $backendUrl,
-        Curl $curl,
-        AdminSession $adminSession,
-        TokenFactory $tokenFactory
+        private readonly StoreManagerInterface $storeManager,
+        private readonly UrlInterface $backendUrl,
+        private readonly Curl $curl,
+        private readonly AdminSession $adminSession,
+        private readonly TokenFactory $tokenFactory
     ) {
         parent::__construct($context);
-        $this->storeManager = $storeManager;
-        $this->backendUrl   = $backendUrl;
-        $this->curl         = $curl;
-        $this->adminSession = $adminSession;
-        $this->tokenFactory = $tokenFactory;
     }
 
     public function getPortalUrl(): string
@@ -45,10 +39,80 @@ class Token extends AbstractHelper
         return rtrim($url ?: self::DEFAULT_PORTAL_URL, '/');
     }
 
+    /**
+     * Portal URL for server-side PHP curl calls.
+     * Inside Docker, 'localhost' resolves to the container itself — swap it for
+     * 'host.docker.internal' so curl can reach Flask running on the host machine.
+     */
+    private function getInternalPortalUrl(): string
+    {
+        return str_replace('://localhost', '://host.docker.internal', $this->getPortalUrl());
+    }
+
     public function getApiKey(): string
     {
         $key = $this->scopeConfig->getValue(self::XML_PATH_API_KEY);
         return $key ?: self::DEFAULT_API_KEY;
+    }
+
+    public function getLicenseKey(): string
+    {
+        return (string) ($this->scopeConfig->getValue(
+            self::XML_PATH_LICENSE_KEY,
+            ScopeInterface::SCOPE_STORE
+        ) ?? '');
+    }
+
+    /**
+     * Validate access by checking the store domain against the portal's subscription system.
+     * Uses a domain-based GET request — no license key required.
+     * Result is cached per request.
+     */
+    public function validateLicense(): array
+    {
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+
+        $portalUrl = $this->getInternalPortalUrl();
+
+        // Extract the domain from the store base URL
+        $storeUrl = rtrim($this->storeManager->getStore()->getBaseUrl(), '/');
+        $parsed   = parse_url($storeUrl);
+        $host     = $parsed['host'] ?? 'localhost';
+        $port     = isset($parsed['port']) ? ':' . $parsed['port'] : '';
+        $domain   = $host . $port;
+
+        $url = $portalUrl . '/license/validate?' . http_build_query([
+            'domain'   => $domain,
+            'platform' => 'magento',
+        ]);
+
+        try {
+            $this->curl->setOption(CURLOPT_SSL_VERIFYPEER, false);
+            $this->curl->setOption(CURLOPT_SSL_VERIFYHOST, false);
+            $this->curl->setOption(CURLOPT_TIMEOUT, 5);
+            $this->curl->get($url);
+
+            $body   = $this->curl->getBody();
+            $result = json_decode($body, true);
+            $cache  = is_array($result) ? $result : ['valid' => false, 'message' => 'Invalid response from portal.'];
+        } catch (\Exception $e) {
+            // Portal unreachable — fail open (don't break admin) but mark invalid
+            $cache = ['valid' => false, 'message' => 'Could not reach portal: ' . $e->getMessage()];
+        }
+
+        return $cache;
+    }
+
+    /**
+     * Returns true if the current store domain has an active subscription.
+     * No license key needed — access is domain-based and payment-verified.
+     */
+    public function isLicensed(): bool
+    {
+        return (bool) ($this->validateLicense()['valid'] ?? false);
     }
 
     /**
@@ -79,11 +143,7 @@ class Token extends AbstractHelper
 
     /**
      * Auto-connect this Magento store to the portal using the currently
-     * logged-in admin's session — no username/password required.
-     *
-     * Generates a Magento REST API token for the active admin user, signs the
-     * request with HMAC-SHA256, and POSTs to the portal's /magento/auto-connect
-     * endpoint. The portal stores the token and marks the store as connected.
+     * logged-in admin session — no username/password required.
      */
     public function autoConnect(): bool
     {
@@ -93,11 +153,14 @@ class Token extends AbstractHelper
         }
 
         $storeUrl  = rtrim($this->storeManager->getStore()->getBaseUrl(), '/');
-        $storeName = $this->storeManager->getStore()->getName();
-        $portalUrl = $this->getPortalUrl();
+        $parsed    = parse_url($storeUrl);
+        $host      = $parsed['host'] ?? '';
+        $port      = isset($parsed['port']) ? ':' . $parsed['port'] : '';
+        $domain    = $host . $port;
+        $storeName = $domain ? 'Magento — ' . $domain : $this->storeManager->getStore()->getName();
+        $portalUrl = $this->getInternalPortalUrl();
         $apiKey    = $this->getApiKey();
 
-        // Generate a Magento REST API token for the logged-in admin (no password needed)
         try {
             $tokenModel  = $this->tokenFactory->create();
             $tokenModel->createAdminToken($adminUser->getId());
@@ -110,7 +173,7 @@ class Token extends AbstractHelper
             return false;
         }
 
-        $timestamp  = (string)time();
+        $timestamp  = (string) time();
         $payload    = $storeUrl . '|' . $timestamp;
         $sig        = hash_hmac('sha256', $payload, $apiKey);
 

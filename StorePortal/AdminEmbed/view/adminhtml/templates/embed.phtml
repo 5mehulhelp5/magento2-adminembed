@@ -7,10 +7,19 @@
  */
 $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
 /** @var \StorePortal\AdminEmbed\Helper\Token $tokenHelper */
-$tokenHelper  = $objectManager->get(\StorePortal\AdminEmbed\Helper\Token::class);
-$portalPath   = $block->getData('portal_path') ?: '/dashboard';
-$iframeUrl    = $tokenHelper->getIframeUrl($portalPath);
-$portalUrl    = $tokenHelper->getPortalUrl();
+$tokenHelper     = $objectManager->get(\StorePortal\AdminEmbed\Helper\Token::class);
+$portalPath      = $block->getData('portal_path') ?: '/dashboard';
+$portalUrl       = $tokenHelper->getPortalUrl();
+$licenseValid    = $block->getData('license_valid') ?? $tokenHelper->isLicensed();
+$licensePlan     = $block->getData('license_plan') ?? '';
+$licenseMessage  = $block->getData('license_message') ?? '';
+$settingsUrl     = $block->getData('portal_settings_url') ?? '#';
+// Extract Magento store domain so select-plan can pre-fill and match subscription
+$storeManager = $objectManager->get(\Magento\Store\Model\StoreManagerInterface::class);
+$storeUrl = $storeManager->getStore()->getBaseUrl();
+$parsed = parse_url($storeUrl);
+$storeDomain = ($parsed['host'] ?? 'localhost') . (isset($parsed['port']) ? ':' . $parsed['port'] : '');
+$iframeUrl       = $licenseValid ? $tokenHelper->getIframeUrl($portalPath) : $portalUrl . '/select-plan?domain=' . urlencode($storeDomain);
 ?>
 <style>
   /* ── Container ── */
@@ -99,9 +108,54 @@ $portalUrl    = $tokenHelper->getPortalUrl();
   .sp-btn-open:hover { opacity: .88; transform: translateY(-1px); }
 </style>
 
-<div id="sp-wrap">
+<?php if (!$licenseValid): ?>
+<div style="
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:linear-gradient(135deg,#1e1b4b 0%,#0f0c29 100%);
+  border:1px solid #4338ca;border-radius:14px;
+  padding:2.5rem 2rem;text-align:center;margin-bottom:1rem;
+" id="sp-locked-banner">
+  <div style="font-size:2.5rem;margin-bottom:.75rem;">🔒</div>
+  <div style="font-size:1.15rem;font-weight:800;color:#e0e7ff;margin-bottom:.5rem;">
+    Store Portal — Subscription Required
+  </div>
+  <div style="font-size:.875rem;color:#a5b4fc;line-height:1.6;margin-bottom:1.75rem;max-width:460px;margin-left:auto;margin-right:auto;">
+    <?php if (!empty($licenseMessage)): ?>
+      <?= $block->escapeHtml($licenseMessage) ?>
+    <?php else: ?>
+      Choose a plan and pay securely — your portal access is activated instantly, no license key needed.
+    <?php endif; ?>
+  </div>
+  <button onclick="showSelectPlan()"
+     style="
+       display:inline-block;
+       background:linear-gradient(135deg,#7c3aed,#4f8ef7);
+       color:#fff;border:none;border-radius:10px;cursor:pointer;
+       padding:.85rem 2.2rem;font-size:1rem;font-weight:700;
+       letter-spacing:.01em;
+       box-shadow:0 4px 18px rgba(124,58,237,.35);
+       margin-bottom:.75rem;
+     ">
+    Select a Plan &amp; Subscribe →
+  </button>
+</div>
+<?php else: ?>
+<?php if (!empty($licensePlan)): ?>
+<div style="
+  background:#052e16;border:1px solid #166534;border-radius:8px;
+  padding:.6rem 1rem;margin-bottom:1rem;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:.8rem;color:#86efac;
+">
+  ✅ Licensed — <strong><?= $block->escapeHtml($licensePlan) ?></strong> Plan
+</div>
+<?php endif; ?>
+<?php endif; ?>
+
+<div id="sp-wrap" <?= !$licenseValid ? 'style="display:none"' : '' ?>>
   <iframe id="sp-frame"
-          src="<?= $block->escapeUrl($iframeUrl) ?>"
+          <?php if ($licenseValid): ?>src="<?= $block->escapeUrl($iframeUrl) ?>"<?php endif; ?>
+          data-src="<?= $block->escapeUrl($iframeUrl) ?>"
           title="Store Portal"
           frameborder="0"
           allowfullscreen>
@@ -130,21 +184,54 @@ $portalUrl    = $tokenHelper->getPortalUrl();
   var wrap    = document.getElementById('sp-wrap');
   var errBox  = document.getElementById('sp-error');
   var timer;
+  var iframeLoaded = false;
 
   function onLoad() {
+    if (iframeLoaded) return;   // fire once only
+    iframeLoaded = true;
     clearTimeout(timer);
-    loading.style.display = 'none';
-    frame.style.opacity   = '1';
+    if (loading) loading.style.display = 'none';
+    frame.style.opacity = '1';
   }
 
   function onError() {
     clearTimeout(timer);
-    wrap.style.display   = 'none';
-    errBox.style.display = 'block';
+    if (wrap)   wrap.style.display   = 'none';
+    if (errBox) errBox.style.display = 'block';
   }
 
-  timer = setTimeout(onError, 15000);
-  frame.addEventListener('load',  onLoad);
-  frame.addEventListener('error', onError);
+  /* Licensed state: frame already has src, start timer immediately */
+  if (frame && frame.getAttribute('src')) {
+    timer = setTimeout(onError, 15000);
+    frame.addEventListener('load',  onLoad);
+    frame.addEventListener('error', onError);
+  }
+
+  /* Listen for postMessage from the portal iframe (cross-origin safe) */
+  window.addEventListener('message', function (e) {
+    if (e.data && e.data.action === 'reloadPortal') {
+      window.location.reload();
+    }
+  });
+
+  /* Unlicensed state: button click loads the iframe */
+  window.showSelectPlan = function () {
+    var banner = document.getElementById('sp-locked-banner');
+    if (banner) banner.style.display = 'none';
+    if (wrap)   wrap.style.display   = 'block';
+
+    /* frame has no src yet (no src attribute in HTML) — set it now */
+    var targetSrc = frame.getAttribute('data-src');
+    if (targetSrc && !frame.getAttribute('src')) {
+      /* Append current Magento admin URL so Flask stores it and passes it to Stripe success page */
+      var sep = targetSrc.indexOf('?') !== -1 ? '&' : '?';
+      targetSrc = targetSrc + sep + 'return_url=' + encodeURIComponent(window.location.href);
+      frame.setAttribute('src', targetSrc);
+      /* Start a fresh 15-second timeout from the moment the user clicked */
+      timer = setTimeout(onError, 15000);
+      frame.addEventListener('load',  onLoad);
+      frame.addEventListener('error', onError);
+    }
+  };
 })();
 </script>
