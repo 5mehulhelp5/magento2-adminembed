@@ -64,8 +64,7 @@ class Token extends AbstractHelper
     }
 
     /**
-     * Validate access by checking the store domain against the portal's subscription system.
-     * Uses a domain-based GET request — no license key required.
+     * Validate access by checking domain + license key against the portal's subscription system.
      * Result is cached per request.
      */
     public function validateLicense(): array
@@ -75,7 +74,8 @@ class Token extends AbstractHelper
             return $cache;
         }
 
-        $portalUrl = $this->getInternalPortalUrl();
+        $portalUrl  = $this->getInternalPortalUrl();
+        $licenseKey = $this->getLicenseKey();
 
         // Extract the domain from the store base URL
         $storeUrl = rtrim($this->storeManager->getStore()->getBaseUrl(), '/');
@@ -84,10 +84,12 @@ class Token extends AbstractHelper
         $port     = isset($parsed['port']) ? ':' . $parsed['port'] : '';
         $domain   = $host . $port;
 
-        $url = $portalUrl . '/license/validate?' . http_build_query([
-            'domain'   => $domain,
-            'platform' => 'magento',
-        ]);
+        $params = ['domain' => $domain, 'platform' => 'magento'];
+        if ($licenseKey !== '') {
+            $params['license_key'] = $licenseKey;
+        }
+
+        $url = $portalUrl . '/license/validate?' . http_build_query($params);
 
         try {
             $this->curl->setOption(CURLOPT_SSL_VERIFYPEER, false);
@@ -107,8 +109,8 @@ class Token extends AbstractHelper
     }
 
     /**
-     * Returns true if the current store domain has an active subscription.
-     * No license key needed — access is domain-based and payment-verified.
+     * Returns true if the current store domain has an active subscription
+     * and the configured license key is valid.
      */
     public function isLicensed(): bool
     {
