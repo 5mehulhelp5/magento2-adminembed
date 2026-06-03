@@ -1,31 +1,35 @@
 {
-    "name": "storeportal/magento2-adminembed",
-    "description": "Embeds the Store Portal dashboard inside Magento 2 Admin",
+    "name": "etechflow/magento2-adminembed",
+    "description": "Embeds the Store Portal dashboard inside Magento 2 Admin and fires product webhooks",
     "type": "magento2-module",
-    "version": "1.0.0",
     "license": "proprietary",
     "authors": [
         {
-            "name": "Store Portal",
-            "email": "etechflow0@gmail.com"
+            "name": "eTechFlow",
+            "email": "etechflow0@gmail.com",
+            "homepage": "https://etechflow.com"
         }
     ],
     "require": {
         "php": ">=7.4",
         "magento/framework": "*",
-        "magento/module-backend": "*"
+        "magento/module-backend": "*",
+        "magento/module-store": "*"
     },
     "autoload": {
         "files": [
-            "StorePortal/AdminEmbed/registration.php"
+            "StorePortal/AdminEmbed/registration.php",
+            "StorePortal/Connector/registration.php"
         ],
         "psr-4": {
-            "StorePortal\\AdminEmbed\\": "StorePortal/AdminEmbed/"
+            "StorePortal\\AdminEmbed\\": "StorePortal/AdminEmbed/",
+            "StorePortal\\Connector\\": "StorePortal/Connector/"
         }
     },
     "extra": {
         "map": [
-            ["StorePortal/AdminEmbed", "StorePortal/AdminEmbed"]
+            ["StorePortal/AdminEmbed", "StorePortal/AdminEmbed"],
+            ["StorePortal/Connector", "StorePortal/Connector"]
         ]
     }
 }
