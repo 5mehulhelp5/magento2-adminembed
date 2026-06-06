@@ -1,0 +1,241 @@
+<?php
+declare(strict_types=1);
+/** @var \StorePortal\AdminEmbed\Block\Adminhtml\License\Gate $block */
+$domain        = $block->getCurrentDomain();
+$configuredKey = $block->getConfiguredKey();
+$configUrl     = $block->getConfigUrl();
+$createSessionUrl = $block->getUrl('storeportal_embed/license/createsession');
+$plansUrl         = $block->getPlansUrl();
+?>
+<style>
+*{box-sizing:border-box}
+.etf-gate-wrap{display:flex;align-items:flex-start;justify-content:center;min-height:70vh;background:linear-gradient(135deg,#0b1828 0%,#0d1f35 100%);padding:40px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.etf-gate-inner{width:100%;max-width:1100px}
+.etf-gate-header{text-align:center;margin-bottom:40px}
+.etf-gate-lock{width:72px;height:72px;background:linear-gradient(135deg,#1a6fdb,#0d4a9e);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.etf-gate-header h1{font-size:2rem;font-weight:700;color:#fff;margin:0 0 8px}
+.etf-gate-header p{color:rgba(255,255,255,.6);margin:0 0 12px;font-size:.95rem}
+.etf-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#f87171;padding:4px 14px;border-radius:20px;font-size:.8rem;font-weight:600;margin-bottom:16px}
+.etf-domain-chip{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.75);padding:4px 14px;border-radius:20px;font-size:.85rem;font-family:monospace}
+.etf-warn{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);color:#fbbf24;padding:12px 18px;border-radius:10px;font-size:.85rem;margin:0 auto 28px;max-width:600px;text-align:left}
+.etf-portal-notice{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);color:#93c5fd;padding:12px 18px;border-radius:10px;font-size:.85rem;margin:0 auto 28px;max-width:600px;text-align:left}
+/* Plans grid */
+.etf-plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px}
+.etf-plan-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:24px 20px;text-align:center;position:relative;transition:border-color .2s,transform .2s;color:#fff}
+.etf-plan-card:hover{border-color:rgba(26,111,219,.5);transform:translateY(-2px)}
+.etf-plan-card.popular{border-color:rgba(26,111,219,.6);background:rgba(26,111,219,.08)}
+.etf-popular-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a6fdb,#0d4a9e);color:#fff;padding:3px 14px;border-radius:20px;font-size:.72rem;font-weight:700;white-space:nowrap}
+.etf-plan-name{font-weight:700;font-size:1rem;margin:0 0 8px}
+.etf-plan-price{font-size:1.7rem;font-weight:700;margin:0 0 4px;color:#fff}
+.etf-plan-price span{font-size:.85rem;font-weight:400;color:rgba(255,255,255,.5)}
+.etf-plan-desc{font-size:.78rem;color:rgba(255,255,255,.5);margin:0 0 16px}
+.etf-plan-features{list-style:none;padding:0;margin:0 0 20px;text-align:left}
+.etf-plan-features li{font-size:.78rem;color:rgba(255,255,255,.65);padding:2px 0}
+.etf-plan-features li::before{content:"✓ ";color:#4ade80}
+.etf-btn-sub{width:100%;background:linear-gradient(135deg,#1a6fdb,#0d4a9e);color:#fff;border:none;padding:10px 0;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .2s}
+.etf-btn-sub:hover{opacity:.85}
+.etf-plan-card.popular .etf-btn-sub{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
+/* Enterprise card */
+.etf-plan-card.enterprise{border-style:dashed}
+.etf-btn-contact{width:100%;background:transparent;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);padding:10px 0;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;transition:border-color .2s}
+.etf-btn-contact:hover{border-color:rgba(255,255,255,.5);color:#fff}
+/* Checkout form */
+.etf-checkout{background:rgba(255,255,255,.04);border:1px solid rgba(26,111,219,.4);border-radius:20px;padding:36px;margin-bottom:32px;display:none}
+.etf-checkout h2{color:#fff;font-size:1.4rem;margin:0 0 6px}
+.etf-checkout .etf-checkout-sub{color:rgba(255,255,255,.55);font-size:.9rem;margin:0 0 28px}
+.etf-form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.etf-field{display:flex;flex-direction:column;gap:6px}
+.etf-field label{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.5);font-weight:600}
+.etf-field input{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.15);color:#fff;padding:12px 16px;border-radius:10px;font-size:.95rem;outline:none;transition:border-color .2s}
+.etf-field input::placeholder{color:rgba(255,255,255,.3)}
+.etf-field input:focus{border-color:rgba(26,111,219,.7)}
+.etf-checkout-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.etf-btn-pay{background:linear-gradient(135deg,#1a6fdb,#0d4a9e);color:#fff;border:none;padding:14px 32px;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;transition:opacity .2s}
+.etf-btn-pay:hover{opacity:.85}
+.etf-btn-pay:disabled{opacity:.5;cursor:not-allowed}
+.etf-btn-back{background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);padding:12px 24px;border-radius:12px;font-size:.9rem;cursor:pointer;transition:border-color .2s}
+.etf-btn-back:hover{border-color:rgba(255,255,255,.5);color:#fff}
+.etf-checkout-note{font-size:.78rem;color:rgba(255,255,255,.4);margin-top:12px}
+/* Bottom link */
+.etf-already{text-align:center;margin-top:8px}
+.etf-already a{color:rgba(255,255,255,.45);font-size:.85rem;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.2);transition:color .2s}
+.etf-already a:hover{color:rgba(255,255,255,.8)}
+</style>
+
+<div class="etf-gate-wrap">
+  <div class="etf-gate-inner">
+    <!-- Header -->
+    <div class="etf-gate-header">
+      <div class="etf-gate-lock">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <div class="etf-badge">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+        License Required
+      </div>
+      <h1>Activate Your License</h1>
+      <p>Choose a plan below to unlock the Store Portal embed on</p>
+      <div class="etf-domain-chip"><?= $block->escapeHtml($domain ?: 'your store') ?></div>
+    </div>
+
+    <?php if ($configuredKey !== '' && !str_starts_with($configuredKey, 'SP-')): ?>
+    <div class="etf-warn">⚠ The license key you entered is invalid for this domain. Please subscribe to get a valid key.</div>
+    <?php endif; ?>
+
+    <!-- Plans grid (rendered from the portal: recurring or one-time) -->
+    <div class="etf-plans" id="etf-plans">
+      <div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,.5);font-size:.9rem;padding:20px;">Loading plans…</div>
+    </div><!-- /.etf-plans -->
+
+    <!-- Inline checkout form -->
+    <div class="etf-checkout" id="etf-checkout">
+      <h2>Subscribe to <span id="etf-plan-name-label">Plan</span></h2>
+      <p class="etf-checkout-sub">Price: <strong id="etf-plan-price-label" style="color:#fff"></strong> &nbsp;·&nbsp; Secure payment via Stripe</p>
+
+      <div class="etf-form-row">
+        <div class="etf-field">
+          <label for="etf-name">Full Name</label>
+          <input type="text" id="etf-name" placeholder="John Smith" autocomplete="name">
+        </div>
+        <div class="etf-field">
+          <label for="etf-email">Email Address</label>
+          <input type="email" id="etf-email" placeholder="john@example.com" autocomplete="email">
+        </div>
+      </div>
+
+      <div class="etf-checkout-actions">
+        <button class="etf-btn-pay" id="etf-pay-btn" onclick="etfProceedToPayment()">Proceed to Payment →</button>
+        <button class="etf-btn-back" onclick="etfBack()">← Choose Different Plan</button>
+      </div>
+      <p class="etf-checkout-note">🔒 You will be redirected to Stripe's secure checkout. After payment, your license key is automatically activated in Magento.</p>
+    </div>
+
+    <div class="etf-already">
+      <a href="<?= $block->escapeUrl($configUrl) ?>">I already have a license key — enter it in settings →</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var _etfPlan = '';
+var _etfCreateUrl = '<?= $block->escapeJs($createSessionUrl) ?>';
+var _etfPlansUrl  = '<?= $block->escapeJs($plansUrl) ?>';
+
+function etfEsc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+function etfFeatList(text){
+    if(!text) return '<li>Dashboard in Magento admin</li><li>Auto Sync Rules</li><li>Bulk Sync</li>';
+    var t = String(text).replace(/^[^—-]*[—-]\s*/, '');
+    var parts = t.split(/,\s*/).filter(function(x){return x.trim();}).slice(0,4);
+    if(!parts.length) return '<li>Store Portal in Magento admin</li>';
+    return parts.map(function(p){return '<li>'+etfEsc(p.trim())+'</li>';}).join('');
+}
+function etfRenderPlans(data){
+    var wrap = document.getElementById('etf-plans');
+    var plans = (data && data.plans) || [];
+    if(!plans.length){ etfPlansError(); return; }
+    var oneTime = (data.mode === 'one_time');
+    var html = '';
+    plans.forEach(function(p){
+        var popular = (!oneTime && p.period === 'monthly');
+        var title = oneTime ? (p.name || 'Lifetime License')
+                   : ({week:'Weekly',month:'Monthly',year:'Yearly'}[p.period_label] || etfEsc(p.name));
+        var unit  = oneTime ? ' once' : ('/' + etfEsc(p.period_label));
+        var desc  = oneTime ? 'Pay once — never expires.'
+                   : ({week:'Short-term or trying it out',month:'The standard plan',year:'Best value — 2 months free'}[p.period_label] || '');
+        var priceDisp = '$' + p.price + (oneTime ? ' once' : '/' + p.period_label);
+        html += '<div class="etf-plan-card'+(popular?' popular':'')+'">'
+              + (popular ? '<span class="etf-popular-badge">Most Popular</span>' : '')
+              + (oneTime ? '<span class="etf-popular-badge">Lifetime</span>' : '')
+              + '<p class="etf-plan-name">'+etfEsc(title)+'</p>'
+              + '<p class="etf-plan-price">$'+etfEsc(p.price)+'<span>'+unit+'</span></p>'
+              + '<p class="etf-plan-desc">'+etfEsc(desc)+'</p>'
+              + '<ul class="etf-plan-features">'+etfFeatList(p.features)+'</ul>'
+              + '<button class="etf-btn-sub" data-slug="'+etfEsc(p.slug)+'" data-name="'+etfEsc(title)+'" data-price="'+etfEsc(priceDisp)+'">Subscribe &rarr;</button>'
+              + '</div>';
+    });
+    wrap.innerHTML = html;
+    wrap.querySelectorAll('.etf-btn-sub').forEach(function(b){
+        b.addEventListener('click', function(){ etfSelectPlan(b.dataset.slug, b.dataset.name, b.dataset.price); });
+    });
+}
+function etfPlansError(){
+    document.getElementById('etf-plans').innerHTML =
+      '<div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,.5);font-size:.85rem;padding:18px;">Plans are temporarily unavailable. Use the “enter license key” link below.</div>';
+}
+(function(){
+    if(!_etfPlansUrl){ etfPlansError(); return; }
+    fetch(_etfPlansUrl, { headers:{ 'Accept':'application/json','ngrok-skip-browser-warning':'1' } })
+      .then(function(r){ return r.json(); }).then(etfRenderPlans).catch(etfPlansError);
+})();
+
+function etfSelectPlan(plan, name, price) {
+    _etfPlan = plan;
+    document.getElementById('etf-plan-name-label').textContent = name;
+    document.getElementById('etf-plan-price-label').textContent = price;
+    var box = document.getElementById('etf-checkout');
+    box.style.display = 'block';
+    box.scrollIntoView({behavior: 'smooth', block: 'start'});
+    document.getElementById('etf-name').focus();
+}
+
+function etfBack() {
+    document.getElementById('etf-checkout').style.display = 'none';
+    window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+async function etfProceedToPayment() {
+    var name  = document.getElementById('etf-name').value.trim();
+    var email = document.getElementById('etf-email').value.trim();
+
+    if (!name) { alert('Please enter your full name.'); document.getElementById('etf-name').focus(); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address.'); document.getElementById('etf-email').focus(); return; }
+
+    var btn = document.getElementById('etf-pay-btn');
+    var orig = btn.textContent;
+    btn.textContent = 'Creating payment session…';
+    btn.disabled = true;
+
+    try {
+        var body = new URLSearchParams({
+            plan: _etfPlan,
+            name: name,
+            email: email,
+            form_key: '<?= $block->escapeJs($block->getFormKey()) ?>'
+        });
+        var resp = await fetch(_etfCreateUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: body.toString()
+        });
+        var rawText = await resp.text();
+        var data;
+        try {
+            data = JSON.parse(rawText);
+        } catch(parseErr) {
+            // Show first 300 chars of the raw response for debugging
+            alert('Server response (debug): ' + rawText.substring(0, 300));
+            btn.textContent = orig;
+            btn.disabled = false;
+            return;
+        }
+
+        if (data.error) {
+            alert('Error: ' + data.error);
+            btn.textContent = orig;
+            btn.disabled = false;
+        } else if (data.url) {
+            btn.textContent = 'Redirecting to Stripe…';
+            window.location.href = data.url;
+        } else {
+            alert('Unexpected response. Please try again.');
+            btn.textContent = orig;
+            btn.disabled = false;
+        }
+    } catch(e) {
+        alert('Network error: ' + e.message);
+        btn.textContent = orig;
+        btn.disabled = false;
+    }
+}
+</script>

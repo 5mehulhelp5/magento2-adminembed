@@ -1,188 +1,781 @@
 <?php
 
+
+
+
+
 declare(strict_types=1);
+
+
+
+
 
 namespace StorePortal\AdminEmbed\Model;
 
+
+
+
+
+use Magento\Framework\App\CacheInterface;
+
+
 use Magento\Framework\App\Config\ScopeConfigInterface;
+
+
+use Magento\Framework\HTTP\Client\Curl;
+
+
 use Magento\Store\Model\ScopeInterface;
 
+
+use Magento\Store\Model\StoreManagerInterface;
+
+
+
+
+
 /**
- * HMAC-SHA256 license validator for StorePortal_AdminEmbed.
- * Follows eTechFlow LICENSING_PROTOCOL.md exactly.
- * No internet call required — math proves the key was minted for this domain.
+
+
+ * Validates the license for StorePortal_AdminEmbed.
+
+
+ *
+
+
+ * Two config URLs:
+
+
+ *   portal_url     — shown in admin browser links (can be http://127.0.0.1:5000)
+
+
+ *   portal_api_url — called by the Magento SERVER; must be publicly reachable.
+
+
+ *                    Falls back to portal_url if blank (works when portal is public).
+
+
+ *
+
+
+ * Validation priority:
+
+
+ *   1. production_environment = No  → dev mode, always valid.
+
+
+ *   2. production_environment = Yes → require valid key, no exceptions:
+
+
+ *      a. SP-XXXX → live call to portal_api_url/license/validate (domain + IP check).
+
+
+ *      b. Legacy HMAC → offline check.
+
+
+ *      c. No key → invalid.
+
+
  */
+
+
 class LicenseValidator
+
+
 {
-    // ── Per-module constants — unique to THIS module ──────────────────────────
-    // MODULE_ID must match the slug used by tools/generate-license.php and
-    // the webstore license generator. Do NOT change after shipping.
 
-    const MODULE_ID = 'store-portal-magento';
 
-    const SECRET_FRAGMENTS = [
-        'Sp3M9xK2qL7v',
-        'wR4nB8tY1jH6c',
-        'mX5eA2uF9dP3z',
-        'qK7sN1gV4wJ8b',
+    public const XML_PATH_LICENSE_KEY            = 'storeportal/license/license_key';
+
+
+    public const XML_PATH_PRODUCTION_ENVIRONMENT = 'storeportal/license/production_environment';
+
+
+    public const XML_PATH_PORTAL_URL             = 'storeportal/license/portal_url';
+
+
+    public const XML_PATH_PORTAL_API_URL         = 'storeportal/license/portal_api_url';
+
+
+
+
+
+    public const XML_PATH_BUNDLE_LICENSE_KEY = 'etechflow_bundle/license/license_key';
+
+
+
+
+
+    private const MODULE_ID      = 'admin-embed';
+
+
+    private const BUNDLE_ID      = 'etechflow-bundle';
+
+
+
+
+
+    private const SECRET_FRAGMENTS = [
+
+
+        'eTF-AEMB-2026', 'q7M2-vK9p', 'R4cX-bN8t', 'L1aD-hW5j',
+
+
     ];
 
-    const XML_PATH_LICENSE_KEY            = 'storeportal/license/license_key';
-    const XML_PATH_PRODUCTION_ENVIRONMENT = 'storeportal/license/production_environment';
 
-    // ── Bundle constants — IDENTICAL in every StorePortal module ─────────────
-    // A bundle key activates ALL StorePortal modules (All-Channels + Enterprise plans).
-    // BUNDLE_SECRET_FRAGMENTS must NEVER differ between modules — if they drift,
-    // the bundle key silently breaks for that module.
 
-    const BUNDLE_ID = 'store-portal-bundle';
 
-    const BUNDLE_SECRET_FRAGMENTS = [
-        'Bp1X7mQ3kR9n',
-        'wA4cE8hL2gT5v',
-        'sJ6uY0dF3zP7m',
-        'nK9bW5iC1oR4x',
+
+    private const BUNDLE_SECRET_FRAGMENTS = [
+
+
+        'eTF-BUNDLE-2026', 'k2D9-mP4x', 'L8nR-vH2j', 'X7tY-zW5q',
+
+
     ];
 
-    const XML_PATH_BUNDLE_LICENSE_KEY = 'storeportal_bundle/license/license_key';
 
-    // ── Dev / staging host patterns — auto-bypass (no key needed) ────────────
-    // Match LICENSING_PROTOCOL.md §9. Add new patterns here when new dev
-    // environments are introduced company-wide.
 
-    private const DEV_PATTERNS = [
-        '/^localhost$/i',
-        '/^127\.\d+\.\d+\.\d+$/',
-        '/^192\.168\./',
-        '/^10\./',
-        '/^172\.(1[6-9]|2\d|3[01])\./',
-        '/\.test$/i',
-        '/\.local$/i',
-        '/\.localhost$/i',
-        '/\.dev$/i',
-        '/\.example$/i',
-        '/\.invalid$/i',
-        '/^staging\./i',
-        '/^stage\./i',
-        '/^dev\./i',
-        '/^qa\./i',
-        '/^uat\./i',
-        '/^test\./i',
-        '/^preview\./i',
-        '/^sandbox\./i',
-        '/-staging\./i',
-        '/-dev\./i',
-        '/\.ngrok\.io$/i',
-        '/\.ngrok-free\.app$/i',
-        '/\.loca\.lt$/i',
-        '/\.magento\.cloud$/i',
-        '/\.magentocloud\.com$/i',
-    ];
+
+
+    private const CACHE_TTL = 3600;
+
+
+    private const CACHE_TAG = 'storeportal_embed_lic_license';
+
+
+
+
 
     public function __construct(
-        private readonly ScopeConfigInterface $scopeConfig
+
+
+        private readonly ScopeConfigInterface $scopeConfig,
+
+
+        private readonly StoreManagerInterface $storeManager,
+
+
+        private readonly CacheInterface $cache,
+
+
+        private readonly Curl $curl
+
+
     ) {
+
+
     }
 
-    /**
-     * Returns true if this store has a valid per-module or bundle license.
-     * Dev / staging hosts always return true (LICENSING_PROTOCOL.md §9).
-     * Soft-expiry model: subscription lapse never breaks the module.
-     */
+
+
+
+
     public function isValid(): bool
+
+
     {
+
+
         $host = $this->getCurrentHost();
 
-        if ($this->isDevelopmentHost($host)) {
-            return true;
+
+        if ($host === '') {
+
+
+            return false;
+
+
         }
 
-        // Production environment toggle: default=true on null/empty, "0"=false, "1"=true
-        $isProd = $this->scopeConfig->getValue(
-            self::XML_PATH_PRODUCTION_ENVIRONMENT,
-            ScopeInterface::SCOPE_STORE
-        );
-        if ($isProd !== null && $isProd !== '' && $isProd === '0') {
-            return true;
+
+
+
+
+        // Explicit portal revocation always wins — even in dev mode
+
+
+        if ($this->isExplicitlyRevoked()) {
+
+
+            return false;
+
+
         }
 
-        $canonical = $this->canonicalize($host);
 
-        // Check per-module key first
-        $moduleKey = (string) ($this->scopeConfig->getValue(
-            self::XML_PATH_LICENSE_KEY,
-            ScopeInterface::SCOPE_STORE
-        ) ?? '');
-        if ($moduleKey !== '' && hash_equals($this->computeKey($canonical), $moduleKey)) {
+
+
+
+        // production_environment = No → dev mode, bypass
+
+
+        if (!$this->isProductionEnvironment()) {
+
+
             return true;
+
+
         }
 
-        // Fall back to bundle key (All-Channels / Enterprise customers use this)
-        $bundleKey = (string) ($this->scopeConfig->getValue(
-            self::XML_PATH_BUNDLE_LICENSE_KEY,
-            ScopeInterface::SCOPE_STORE
-        ) ?? '');
-        if ($bundleKey !== '' && hash_equals($this->computeBundleKey($canonical), $bundleKey)) {
-            return true;
-        }
 
-        return false;
-    }
 
-    /**
-     * Compute the per-module HMAC key.
-     * HMAC-SHA256(canonicalHost + ":" + MODULE_ID, assembled_secret)
-     * Must produce identical output to the portal's license_engine.py
-     * generate_license_key() when the same master secret is assembled.
-     */
-    public function computeKey(string $canonicalHost): string
-    {
-        $secret = implode('', self::SECRET_FRAGMENTS);
-        return hash_hmac('sha256', $canonicalHost . ':' . self::MODULE_ID, $secret);
-    }
 
-    /**
-     * Compute the bundle HMAC key.
-     * Used to validate All-Channels and Enterprise plan keys.
-     */
-    public function computeBundleKey(string $canonicalHost): string
-    {
-        $secret = implode('', self::BUNDLE_SECRET_FRAGMENTS);
-        return hash_hmac('sha256', $canonicalHost . ':' . self::BUNDLE_ID, $secret);
-    }
 
-    /**
-     * Strip www., remove port number, lowercase.
-     * www.store.com → store.com (one key works for both).
-     */
-    public function canonicalize(string $host): string
-    {
-        $host = strtolower(trim($host));
-        $host = (string) preg_replace('/^www\./u', '', $host);
-        $host = (string) preg_replace('/:\d+$/', '', $host);
-        return $host;
-    }
+        // production_environment = Yes → full enforcement
 
-    /**
-     * Return the current store's hostname from the HTTP request.
-     */
-    public function getCurrentHost(): string
-    {
-        return (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    }
 
-    /**
-     * Return true if this host is a dev / staging environment.
-     * These bypass licensing — merchants get free dev/staging use.
-     */
-    private function isDevelopmentHost(string $host): bool
-    {
-        $canonical = $this->canonicalize($host);
-        foreach (self::DEV_PATTERNS as $pattern) {
-            if (preg_match($pattern, $canonical)) {
+        $configuredKey = $this->getConfiguredKey();
+
+
+
+
+
+        if (str_starts_with($configuredKey, 'SP-')) {
+
+
+            // Fast path: key purchased inside Magento — skip portal API call
+
+
+            if ($this->isLocallyIssuedKey($configuredKey, $host)) {
+
+
                 return true;
+
+
             }
+
+
+            return $this->validateViaPortal($host, $configuredKey);
+
+
         }
+
+
+
+
+
+        if ($configuredKey !== '' && hash_equals($this->computeKey($host), $configuredKey)) {
+
+
+            return true;
+
+
+        }
+
+
+
+
+
+        $bundleKey = $this->getConfiguredBundleKey();
+
+
+        if ($bundleKey !== '' && hash_equals($this->computeBundleKey($host), $bundleKey)) {
+
+
+            return true;
+
+
+        }
+
+
+
+
+
         return false;
+
+
     }
+
+
+
+
+
+    /**
+
+
+     * Call portal API to validate SP-XXXX key.
+
+
+     * Flask checks domain match AND server IP against allowed_ips.
+
+
+     * Cached for 1 hour.
+
+
+     */
+
+
+    private function validateViaPortal(string $host, string $licenseKey): bool
+
+
+    {
+
+
+        $cacheKey = 'etf_alm_lic_' . md5($host . ':' . $licenseKey);
+
+
+        $cached   = $this->cache->load($cacheKey);
+
+
+        if ($cached !== false) {
+
+
+            return $cached === '1';
+
+
+        }
+
+
+
+
+
+        $apiBase = $this->getPortalApiBase();
+
+
+        if ($apiBase === '') {
+
+
+            return false;  // No API URL configured
+
+
+        }
+
+
+
+
+
+        $url = rtrim($apiBase, '/') . '/license/validate'
+
+
+            . '?domain='      . urlencode($this->canonicalize($host))
+
+
+            . '&license_key=' . urlencode($licenseKey)
+
+
+            . '&platform=magento';
+
+
+
+
+
+        $valid = false;
+
+
+        try {
+
+
+            $this->curl->setTimeout(5);
+
+
+            $this->curl->addHeader('Accept', 'application/json');
+
+
+            $this->curl->addHeader('User-Agent', 'ETechFlow-ALM/1.0');
+
+
+            $this->curl->get($url);
+
+
+            $status = $this->curl->getStatus();
+
+
+            $body   = $this->curl->getBody();
+
+
+            if ($status === 200 && $body) {
+
+
+                $data  = json_decode($body, true);
+
+
+                $valid = !empty($data['valid']);
+
+
+            }
+
+
+        } catch (\Exception) {
+
+
+            $valid = false;
+
+
+        }
+
+
+
+
+
+        $this->cache->save(
+
+
+            $valid ? '1' : '0',
+
+
+            $cacheKey,
+
+
+            [self::CACHE_TAG],
+
+
+            self::CACHE_TTL
+
+
+        );
+
+
+
+
+
+        return $valid;
+
+
+    }
+
+
+
+
+
+    /** API URL for server-side calls: portal_api_url, falls back to portal_url. */
+
+
+    private function getPortalApiBase(): string
+
+
+    {
+
+
+        $api = trim((string) $this->scopeConfig->getValue(self::XML_PATH_PORTAL_API_URL));
+
+
+        if ($api !== '') {
+
+
+            return $api;
+
+
+        }
+
+
+        // Fall back to portal_url only if it is not localhost/127.x (unreachable from server)
+
+
+        $browser = trim((string) $this->scopeConfig->getValue(self::XML_PATH_PORTAL_URL));
+
+
+        if ($browser !== '' && !str_contains($browser, '127.0.0.1') && !str_contains($browser, 'localhost')) {
+
+
+            return $browser;
+
+
+        }
+
+
+        return '';
+
+
+    }
+
+
+
+
+
+    public function computeKey(string $host): string
+
+
+    {
+
+
+        $payload = $this->canonicalize($host) . ':' . self::MODULE_ID;
+
+
+        $secret  = implode('', self::SECRET_FRAGMENTS);
+
+
+        $raw     = hash_hmac('sha256', $payload, $secret, true);
+
+
+        return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
+
+
+    }
+
+
+
+
+
+    public function computeBundleKey(string $host): string
+
+
+    {
+
+
+        $payload = $this->canonicalize($host) . ':' . self::BUNDLE_ID;
+
+
+        $secret  = implode('', self::BUNDLE_SECRET_FRAGMENTS);
+
+
+        $raw     = hash_hmac('sha256', $payload, $secret, true);
+
+
+        return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
+
+
+    }
+
+
+
+
+
+    private function canonicalize(string $host): string
+
+
+    {
+
+
+        $host = strtolower(trim($host));
+
+
+        if (str_starts_with($host, 'www.')) {
+
+
+            $host = substr($host, 4);
+
+
+        }
+
+
+        return $host;
+
+
+    }
+
+
+
+
+
+    public function getConfiguredKey(): string
+
+
+    {
+
+
+        $value = $this->scopeConfig->getValue(self::XML_PATH_LICENSE_KEY, ScopeInterface::SCOPE_STORE);
+
+
+        return trim((string) $value);
+
+
+    }
+
+
+
+
+
+    public function getConfiguredBundleKey(): string
+
+
+    {
+
+
+        $value = $this->scopeConfig->getValue(self::XML_PATH_BUNDLE_LICENSE_KEY, ScopeInterface::SCOPE_STORE);
+
+
+        return trim((string) $value);
+
+
+    }
+
+
+
+
+
+    public function isProductionEnvironment(): bool
+
+
+    {
+
+
+        $value = $this->scopeConfig->getValue(self::XML_PATH_PRODUCTION_ENVIRONMENT, ScopeInterface::SCOPE_STORE);
+
+
+        if ($value === null || $value === '') {
+
+
+            return true;
+
+
+        }
+
+
+        return (bool) $value;
+
+
+    }
+
+
+
+
+
+    public function getCurrentHost(): string
+
+
+    {
+
+
+        try {
+
+
+            $url  = $this->storeManager->getStore()->getBaseUrl();
+
+
+            $host = parse_url($url, PHP_URL_HOST);
+
+
+            return is_string($host) ? strtolower($host) : '';
+
+
+        } catch (\Exception) {
+
+
+            return '';
+
+
+        }
+
+
+    }
+
+
+
+
+
+    public function isDevHost(?string $host = null): bool
+
+
+    {
+
+
+        $check = $host !== null ? strtolower(trim($host)) : $this->canonicalize($this->getCurrentHost());
+
+
+        return $this->isDevelopmentHost($check);
+
+
+    }
+
+
+
+
+
+    private function isDevelopmentHost(string $host): bool
+
+
+    {
+
+
+        if ($host === 'localhost' || str_starts_with($host, '127.')) return true;
+
+
+        if (str_starts_with($host, '10.') || str_starts_with($host, '192.168.')) return true;
+
+
+        if (preg_match('/^172\.(1[6-9]|2[0-9]|3[01])\./', $host)) return true;
+
+
+        foreach (['.test', '.local', '.localhost', '.dev', '.example', '.invalid'] as $s) {
+
+
+            if (str_ends_with($host, $s)) return true;
+
+
+        }
+
+
+        foreach (['staging.', 'stage.', 'dev.', 'qa.', 'uat.', 'test.', 'preview.', 'sandbox.'] as $p) {
+
+
+            if (str_starts_with($host, $p)) return true;
+
+
+        }
+
+
+        if (preg_match('/-(staging|stage|dev|qa|uat|test|preview|sandbox)\./', $host)) return true;
+
+
+        foreach (['.magento.cloud', '.magentocloud.com', '.ngrok.io', '.ngrok-free.app', '.loca.lt'] as $s) {
+
+
+            if (str_ends_with($host, $s)) return true;
+
+
+        }
+
+
+        return false;
+
+
+    }
+
+
+
+
+
+    /**
+
+
+     * Returns true ONLY within the 48-hour grace window after local purchase.
+
+
+     * After that, falls through to portal validation so cancellations take effect.
+
+
+     */
+
+
+    private function isLocallyIssuedKey(string $key, string $host): bool
+    {
+        $issuedKey = trim((string) $this->scopeConfig->getValue('storeportal/license/issued_key'));
+        if ($issuedKey === '' || !hash_equals($issuedKey, $key)) {
+            return false;
+        }
+        $issuedDomain = trim((string) $this->scopeConfig->getValue('storeportal/license/issued_domain'));
+        if ($issuedDomain === '' || $this->canonicalize($issuedDomain) !== $this->canonicalize($host)) {
+            return false;
+        }
+        $sessionId = trim((string) $this->scopeConfig->getValue('storeportal/license/stripe_session'));
+        if ($sessionId === '') {
+            return false;
+        }
+        // issued_at is set ONCE by Callback.php at purchase time — never recreated on cache flush
+        $issuedAt = (int) $this->scopeConfig->getValue('storeportal/license/issued_at');
+        if ($issuedAt === 0) {
+            return false;
+        }
+        return (time() - $issuedAt) < 172800; // 48-hour grace from purchase
+    }
+
+
+
+
+    private function isExplicitlyRevoked(): bool
+
+    {
+
+        return (string) $this->scopeConfig->getValue(
+
+            'storeportal_embed/license/revoked',
+
+            ScopeInterface::SCOPE_STORE
+
+        ) === '1';
+
+    }
+
 }

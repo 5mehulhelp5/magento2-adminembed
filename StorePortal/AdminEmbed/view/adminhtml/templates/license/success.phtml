@@ -1,0 +1,56 @@
+<?php
+/** @var \StorePortal\AdminEmbed\Block\Adminhtml\License\Success $block */
+$key    = $block->getIssuedKey();
+$plan   = $block->getPlanLabel();
+$domain = $block->getIssuedDomain();
+$configUrl = $block->getConfigUrl();
+$gateUrl   = $block->getGateUrl();
+$done = (bool) ($block->getRequest()->getParam('payment_done'));
+?>
+<style>
+.etf-success-wrap{display:flex;align-items:center;justify-content:center;min-height:70vh;background:linear-gradient(135deg,#0b1828 0%,#0d1f35 100%);padding:40px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.etf-success-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:48px 56px;max-width:640px;width:100%;text-align:center;color:#fff}
+.etf-success-icon{width:80px;height:80px;background:linear-gradient(135deg,#00c851,#007e33);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:36px}
+.etf-success-card h1{font-size:2rem;font-weight:700;margin:0 0 8px;color:#fff}
+.etf-success-card p{color:rgba(255,255,255,.65);margin:0 0 24px}
+.etf-key-box{background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:20px;margin:24px 0;text-align:left}
+.etf-key-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);margin:0 0 6px}
+.etf-key-value{font-family:'Courier New',monospace;font-size:1.1rem;color:#4ade80;letter-spacing:.05em;word-break:break-all;margin:0 0 12px}
+.etf-copy-btn{background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.4);color:#4ade80;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:.85rem;transition:background .2s}
+.etf-copy-btn:hover{background:rgba(74,222,128,.25)}
+.etf-meta{display:flex;gap:16px;margin:0 0 32px;justify-content:center;flex-wrap:wrap}
+.etf-meta-item{background:rgba(255,255,255,.07);border-radius:8px;padding:8px 16px;font-size:.85rem;color:rgba(255,255,255,.7)}
+.etf-meta-item strong{color:#fff;display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.etf-btn-primary{display:inline-block;background:linear-gradient(135deg,#1a6fdb,#0d4a9e);color:#fff;padding:14px 32px;border-radius:12px;font-weight:600;font-size:1rem;text-decoration:none;transition:opacity .2s;border:none;cursor:pointer}
+.etf-btn-primary:hover{opacity:.85;color:#fff}
+.etf-btn-secondary{display:inline-block;background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:12px 24px;border-radius:12px;font-size:.9rem;text-decoration:none;margin-left:12px;transition:border-color .2s}
+.etf-btn-secondary:hover{border-color:rgba(255,255,255,.5);color:#fff}
+</style>
+<div class="etf-success-wrap">
+  <div class="etf-success-card">
+    <div class="etf-success-icon">✓</div>
+    <h1><?= $done ? 'Payment Successful!' : 'License Active' ?></h1>
+    <p>Your Store Portal Embed license has been activated.</p>
+
+    <?php if ($key !== ''): ?>
+    <div class="etf-key-box">
+      <p class="etf-key-label">Your License Key</p>
+      <p class="etf-key-value" id="etf-key-val"><?= $block->escapeHtml($key) ?></p>
+      <button class="etf-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('etf-key-val').textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Key',2000})">Copy Key</button>
+    </div>
+    <?php endif; ?>
+
+    <div class="etf-meta">
+      <?php if ($plan !== ''): ?>
+      <div class="etf-meta-item"><strong>Plan</strong><?= $block->escapeHtml($plan) ?></div>
+      <?php endif; ?>
+      <?php if ($domain !== ''): ?>
+      <div class="etf-meta-item"><strong>Domain</strong><?= $block->escapeHtml($domain) ?></div>
+      <?php endif; ?>
+      <div class="etf-meta-item"><strong>Status</strong><span style="color:#4ade80">Active</span></div>
+    </div>
+
+    <a href="<?= $block->escapeUrl($configUrl) ?>" class="etf-btn-primary">Go to Settings →</a>
+    <a href="<?= $block->escapeUrl($gateUrl) ?>" class="etf-btn-secondary">License Page</a>
+  </div>
+</div>

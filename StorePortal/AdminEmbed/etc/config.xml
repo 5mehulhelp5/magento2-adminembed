@@ -7,15 +7,6 @@
                 <portal_url>http://localhost:5000</portal_url>
                 <api_key>StorePortalWpKey2026Mazhar</api_key>
             </general>
-            <license>
-                <license_key></license_key>
-                <production_environment>1</production_environment>
-            </license>
         </storeportal>
-        <storeportal_bundle>
-            <license>
-                <license_key></license_key>
-            </license>
-        </storeportal_bundle>
     </default>
 </config>

@@ -7,20 +7,10 @@
  */
 $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
 /** @var \StorePortal\AdminEmbed\Helper\Token $tokenHelper */
-$tokenHelper     = $objectManager->get(\StorePortal\AdminEmbed\Helper\Token::class);
-$portalPath      = $block->getData('portal_path') ?: '/dashboard';
-$portalUrl       = $tokenHelper->getPortalUrl();
-$licenseValid    = $block->getData('license_valid') ?? $tokenHelper->isLicensed();
-$licensePlan     = $block->getData('license_plan') ?? '';
-$licenseMessage  = $block->getData('license_message') ?? '';
-$settingsUrl     = $block->getData('portal_settings_url') ?? '#';
-$licenseConfigUrl = $block->getUrl('adminhtml/system_config/edit', ['section' => 'storeportal']);
-// Extract Magento store domain so select-plan can pre-fill and match subscription
-$storeManager = $objectManager->get(\Magento\Store\Model\StoreManagerInterface::class);
-$storeUrl = $storeManager->getStore()->getBaseUrl();
-$parsed = parse_url($storeUrl);
-$storeDomain = ($parsed['host'] ?? 'localhost') . (isset($parsed['port']) ? ':' . $parsed['port'] : '');
-$iframeUrl       = $licenseValid ? $tokenHelper->getIframeUrl($portalPath) : $portalUrl . '/select-plan?domain=' . urlencode($storeDomain);
+$tokenHelper  = $objectManager->get(\StorePortal\AdminEmbed\Helper\Token::class);
+$portalPath   = $block->getData('portal_path') ?: '/dashboard';
+$iframeUrl    = $tokenHelper->getIframeUrl($portalPath);
+$portalUrl    = $tokenHelper->getPortalUrl();
 ?>
 <style>
   /* ── Container ── */
@@ -109,69 +99,9 @@ $iframeUrl       = $licenseValid ? $tokenHelper->getIframeUrl($portalPath) : $po
   .sp-btn-open:hover { opacity: .88; transform: translateY(-1px); }
 </style>
 
-<?php if (!$licenseValid): ?>
-<div style="
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  background:linear-gradient(135deg,#1e1b4b 0%,#0f0c29 100%);
-  border:1px solid #4338ca;border-radius:14px;
-  padding:2.5rem 2rem;text-align:center;margin-bottom:1rem;
-" id="sp-locked-banner">
-  <div style="font-size:2.5rem;margin-bottom:.75rem;">🔒</div>
-  <div style="font-size:1.15rem;font-weight:800;color:#e0e7ff;margin-bottom:.5rem;">
-    Store Portal — Subscription Required
-  </div>
-  <div style="font-size:.875rem;color:#a5b4fc;line-height:1.6;margin-bottom:1.75rem;max-width:460px;margin-left:auto;margin-right:auto;">
-    <?php if (!empty($licenseMessage)): ?>
-      <?= $block->escapeHtml($licenseMessage) ?>
-    <?php else: ?>
-      Choose a plan and pay securely — your portal access is activated instantly, no license key needed.
-    <?php endif; ?>
-  </div>
-  <div style="display:flex;gap:.85rem;justify-content:center;align-items:center;flex-wrap:wrap;">
-    <button onclick="showSelectPlan()"
-       style="
-         display:inline-block;
-         background:linear-gradient(135deg,#7c3aed,#4f8ef7);
-         color:#fff;border:none;border-radius:10px;cursor:pointer;
-         padding:.85rem 2.2rem;font-size:1rem;font-weight:700;
-         letter-spacing:.01em;
-         box-shadow:0 4px 18px rgba(124,58,237,.35);
-       ">
-      Select a Plan &amp; Subscribe →
-    </button>
-    <a href="<?= $block->escapeUrl($licenseConfigUrl) ?>"
-       style="
-         display:inline-flex;align-items:center;gap:.45rem;
-         background:rgba(255,255,255,.08);
-         color:#c7d2fe;border:1.5px solid rgba(199,210,254,.35);
-         border-radius:10px;cursor:pointer;text-decoration:none;
-         padding:.82rem 1.6rem;font-size:.95rem;font-weight:700;
-         letter-spacing:.01em;
-         transition:background .15s,border-color .15s;
-       "
-       onmouseover="this.style.background='rgba(255,255,255,.14)';this.style.borderColor='rgba(199,210,254,.6)'"
-       onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.borderColor='rgba(199,210,254,.35)'">
-      🔑 Enter License Key
-    </a>
-  </div>
-</div>
-<?php else: ?>
-<?php if (!empty($licensePlan)): ?>
-<div style="
-  background:#052e16;border:1px solid #166534;border-radius:8px;
-  padding:.6rem 1rem;margin-bottom:1rem;
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  font-size:.8rem;color:#86efac;
-">
-  ✅ Licensed — <strong><?= $block->escapeHtml($licensePlan) ?></strong> Plan
-</div>
-<?php endif; ?>
-<?php endif; ?>
-
-<div id="sp-wrap" <?= !$licenseValid ? 'style="display:none"' : '' ?>>
+<div id="sp-wrap">
   <iframe id="sp-frame"
-          <?php if ($licenseValid): ?>src="<?= $block->escapeUrl($iframeUrl) ?>"<?php endif; ?>
-          data-src="<?= $block->escapeUrl($iframeUrl) ?>"
+          src="<?= $block->escapeUrl($iframeUrl) ?>"
           title="Store Portal"
           frameborder="0"
           allowfullscreen>
@@ -200,59 +130,21 @@ $iframeUrl       = $licenseValid ? $tokenHelper->getIframeUrl($portalPath) : $po
   var wrap    = document.getElementById('sp-wrap');
   var errBox  = document.getElementById('sp-error');
   var timer;
-  var iframeLoaded = false;
 
   function onLoad() {
-    if (iframeLoaded) return;   // fire once only
-    iframeLoaded = true;
     clearTimeout(timer);
-    if (loading) loading.style.display = 'none';
-    frame.style.opacity = '1';
+    loading.style.display = 'none';
+    frame.style.opacity   = '1';
   }
 
   function onError() {
     clearTimeout(timer);
-    if (wrap)   wrap.style.display   = 'none';
-    if (errBox) errBox.style.display = 'block';
+    wrap.style.display   = 'none';
+    errBox.style.display = 'block';
   }
 
-  /* Licensed state: frame already has src, start timer immediately */
-  if (frame && frame.getAttribute('src')) {
-    timer = setTimeout(onError, 15000);
-    frame.addEventListener('load',  onLoad);
-    frame.addEventListener('error', onError);
-  }
-
-  /* Listen for postMessage from the portal iframe (cross-origin safe) */
-  window.addEventListener('message', function (e) {
-    if (e.data && e.data.action === 'reloadPortal') {
-      window.location.reload();
-    }
-    /* After payment: navigate to Magento license config page */
-    if (e.data && e.data.action === 'goToSettings') {
-      window.location.href = <?= json_encode($licenseConfigUrl) ?>;
-    }
-  });
-
-  /* Unlicensed state: button click loads the iframe */
-  window.showSelectPlan = function () {
-    var banner = document.getElementById('sp-locked-banner');
-    if (banner) banner.style.display = 'none';
-    if (wrap)   wrap.style.display   = 'block';
-
-    /* frame has no src yet (no src attribute in HTML) — set it now */
-    var targetSrc = frame.getAttribute('data-src');
-    if (targetSrc && !frame.getAttribute('src')) {
-      /* Append current Magento admin URL so Flask stores it and passes it to Stripe success page */
-      var sep = targetSrc.indexOf('?') !== -1 ? '&' : '?';
-      targetSrc = targetSrc + sep + 'return_url=' + encodeURIComponent(window.location.href)
-                + '&settings_url=' + encodeURIComponent(<?= json_encode($licenseConfigUrl) ?>);
-      frame.setAttribute('src', targetSrc);
-      /* Start a fresh 15-second timeout from the moment the user clicked */
-      timer = setTimeout(onError, 15000);
-      frame.addEventListener('load',  onLoad);
-      frame.addEventListener('error', onError);
-    }
-  };
+  timer = setTimeout(onError, 15000);
+  frame.addEventListener('load',  onLoad);
+  frame.addEventListener('error', onError);
 })();
 </script>

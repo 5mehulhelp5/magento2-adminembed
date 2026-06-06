@@ -20,31 +20,44 @@
                     <comment>Must match WP_PLUGIN_API_KEY in your Flask .env file.</comment>
                 </field>
             </group>
-            <group id="license" translate="label" sortOrder="100" showInDefault="1" showInWebsite="1" showInStore="1">
+
+            <group id="license" translate="label" sortOrder="5" showInDefault="1" showInWebsite="0" showInStore="0">
                 <label>License</label>
-                <field id="license_key" translate="label comment" type="obscure" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="license_key" translate="label comment" type="text" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>License Key</label>
-                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
-                    <comment>Paste your Store Portal license key. Obtain it from your Store Portal admin at /admin/licensing.</comment>
+                    <comment><![CDATA[Paste your eTechFlow SP-XXXX subscription key (auto-saved after Stripe payment) or a per-module/bundle HMAC key.]]></comment>
                 </field>
-                <field id="production_environment" translate="label comment" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="issued_key" translate="label comment" type="obscure" sortOrder="15" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Issued Key (auto)</label>
+                    <comment><![CDATA[Set automatically after successful payment. Do not edit.]]></comment>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                </field>
+                <field id="portal_url" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>License Portal URL</label>
+                    <comment><![CDATA[Base URL of the eTechFlow licensing portal (used for /license/plans and /license/validate). No trailing slash.]]></comment>
+                </field>
+                <field id="portal_api_url" translate="label comment" type="text" sortOrder="25" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>License Portal API URL</label>
+                    <comment><![CDATA[Optional override for the licensing API base. Defaults to the License Portal URL.]]></comment>
+                </field>
+                <field id="production_environment" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Production Environment</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment>Set to Yes on live/production stores. Dev/staging environments bypass licensing automatically.</comment>
+                    <comment><![CDATA[<strong>Yes</strong> — live store; license enforced. <strong>No</strong> — dev/staging; licensing bypassed.]]></comment>
                 </field>
             </group>
-        </section>
-        <!-- Bundle license — shared across all StorePortal modules -->
-        <section id="storeportal_bundle" translate="label" sortOrder="201" showInDefault="1" showInWebsite="1" showInStore="1">
-            <label>Store Portal — Bundle License</label>
-            <tab>storeportal</tab>
-            <resource>StorePortal_AdminEmbed::config</resource>
-            <group id="license" translate="label" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
-                <label>Bundle Key (All-Channels / Enterprise)</label>
-                <field id="license_key" translate="label comment" type="obscure" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Bundle License Key</label>
+
+            <group id="payment" translate="label" sortOrder="6" showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>Payment Settings (Stripe)</label>
+                <comment><![CDATA[Enter your Stripe keys so merchants can pay for a license from this admin. Keys are encrypted at rest.]]></comment>
+                <field id="stripe_secret_key" translate="label comment" type="obscure" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Stripe Secret Key</label>
+                    <comment><![CDATA[Your Stripe secret key (sk_test_... or sk_live_...).]]></comment>
                     <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
-                    <comment>For All-Channels and Enterprise plans — one bundle key activates all StorePortal modules. Leave blank if using a per-module key above.</comment>
+                </field>
+                <field id="stripe_publishable_key" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Stripe Publishable Key</label>
+                    <comment><![CDATA[Your Stripe publishable key (pk_test_... or pk_live_...).]]></comment>
                 </field>
             </group>
         </section>
