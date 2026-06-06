@@ -1,5 +1,5 @@
 {
-    "name": "etechflow/magento2-adminembed",
+    "name": "storeportal/magento2-adminembed",
     "description": "Embeds the Store Portal dashboard inside Magento 2 Admin and fires product webhooks",
     "type": "magento2-module",
     "license": "proprietary",
