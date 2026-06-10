@@ -40,11 +40,6 @@
                     <label>License Portal API URL</label>
                     <comment><![CDATA[Optional override for the licensing API base. Defaults to the License Portal URL.]]></comment>
                 </field>
-                <field id="production_environment" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">
-                    <label>Production Environment</label>
-                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment><![CDATA[<strong>Yes</strong> — live store; license enforced. <strong>No</strong> — dev/staging; licensing bypassed.]]></comment>
-                </field>
             </group>
 
             <group id="payment" translate="label" sortOrder="6" showInDefault="1" showInWebsite="0" showInStore="0">

@@ -599,6 +599,8 @@ class LicenseValidator
 
 
     {
+        // Sandbox toggle removed: production licensing is always enforced.
+        return true;
 
 
         $value = $this->scopeConfig->getValue(self::XML_PATH_PRODUCTION_ENVIRONMENT, ScopeInterface::SCOPE_STORE);
