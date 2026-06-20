@@ -4,9 +4,17 @@
     <default>
         <storeportal>
             <general>
-                <portal_url>http://localhost:5000</portal_url>
-                <api_key>StorePortalWpKey2026Mazhar</api_key>
+                <!--
+                  The embed Store Portal URL and its HMAC api_key are deployment specific
+                  secrets and must not be committed. Set them per install with the
+                  config:set lock-env command for storeportal/general/portal_url and
+                  storeportal/general/api_key; lock-env stores the value in app/etc/env.php,
+                  which is git ignored.
+                -->
             </general>
+            <license>
+                <portal_api_url>https://license-service.etechflow.com</portal_api_url>
+            </license>
         </storeportal>
     </default>
 </config>
