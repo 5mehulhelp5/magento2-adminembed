@@ -2,12 +2,14 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
     <system>
-        <tab id="storeportal" translate="label" sortOrder="200">
-            <label>Store Portal</label>
+        <!-- Hang under the shared eTechFlow config tab (declared by every eTechFlow
+             module; tabs merge by id) instead of a standalone Store Portal tab. -->
+        <tab id="etechflow" translate="label" sortOrder="200">
+            <label>Etechflow</label>
         </tab>
         <section id="storeportal" translate="label" sortOrder="200" showInDefault="1" showInWebsite="0" showInStore="0">
             <label>Store Portal</label>
-            <tab>storeportal</tab>
+            <tab>etechflow</tab>
             <resource>StorePortal_AdminEmbed::config</resource>
             <group id="general" translate="label" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
                 <label>General Settings</label>
