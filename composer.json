@@ -2,6 +2,7 @@
     "name": "storeportal/magento2-adminembed",
     "description": "Embeds the Store Portal dashboard inside Magento 2 Admin and fires product webhooks",
     "type": "magento2-module",
+    "version": "1.1.4",
     "license": "proprietary",
     "authors": [
         {
@@ -28,8 +29,14 @@
     },
     "extra": {
         "map": [
-            ["StorePortal/AdminEmbed", "StorePortal/AdminEmbed"],
-            ["StorePortal/Connector", "StorePortal/Connector"]
+            [
+                "StorePortal/AdminEmbed",
+                "StorePortal/AdminEmbed"
+            ],
+            [
+                "StorePortal/Connector",
+                "StorePortal/Connector"
+            ]
         ]
     }
 }

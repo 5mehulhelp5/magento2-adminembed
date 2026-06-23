@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="controller_action_predispatch_storeportal_embed">
+        <observer name="sp_embed_update_notification" instance="StorePortal\AdminEmbed\Observer\AddUpdateNotification"/>
+    </event>
+    <event name="controller_action_predispatch_adminhtml_system_config_edit">
+        <observer name="sp_embed_update_notification_sysconfig" instance="StorePortal\AdminEmbed\Observer\AddUpdateNotification"/>
+    </event>
+</config>
