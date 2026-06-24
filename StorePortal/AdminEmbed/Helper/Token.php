@@ -14,7 +14,7 @@ class Token extends AbstractHelper
     const XML_PATH_PORTAL_URL = 'storeportal/general/portal_url';
     const XML_PATH_API_KEY    = 'storeportal/general/api_key';
 
-    const DEFAULT_PORTAL_URL = 'http://localhost:5000';
+    const DEFAULT_PORTAL_URL = 'https://module.etechflow.com';
     const DEFAULT_API_KEY    = 'StorePortalWpKey2026Mazhar';
 
     protected $storeManager;
