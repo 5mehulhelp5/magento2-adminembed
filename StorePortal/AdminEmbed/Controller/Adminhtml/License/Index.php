@@ -32,7 +32,7 @@ class Index extends Action
         }
 
         $resultPage = $this->resultPageFactory->create();
-        $resultPage->getConfig()->getTitle()->prepend((string) __('Account Links Manager — License Required'));
+        $resultPage->getConfig()->getTitle()->prepend((string) __('Store Portal — License Required'));
         return $resultPage;
     }
 }

@@ -56,7 +56,7 @@ class CreateSession extends Action
             $stripeKey = $this->getStripeSecretKey();
             if ($stripeKey === '') {
                 ob_get_clean();
-                return $result->setData(['error' => 'Stripe is not configured. Go to Stores > Configuration > eTechFlow > Account Links Manager > Payment (Stripe) and add your Stripe Secret Key.']);
+                return $result->setData(['error' => 'Stripe is not configured. Go to Stores > Configuration > eTechFlow > Store Portal > Payment (Stripe) and add your Stripe Secret Key.']);
             }
 
             $domain   = $this->licenseValidator->getCurrentHost();
@@ -169,7 +169,7 @@ class CreateSession extends Action
                 if ($amount <= 0) {
                     return null;
                 }
-                return ['amount' => $amount, 'name' => (string) ($card['name'] ?? 'Account Links Manager')];
+                return ['amount' => $amount, 'name' => (string) ($card['name'] ?? 'Store Portal')];
             }
         }
         return null;
@@ -196,7 +196,7 @@ class CreateSession extends Action
         } else {
             $p['line_items[0][price_data][currency]']            = $info['currency'];
             $p['line_items[0][price_data][unit_amount]']         = (string) $info['amount'];
-            $p['line_items[0][price_data][product_data][name]']  = 'Account Links Manager - ' . $info['label'];
+            $p['line_items[0][price_data][product_data][name]']  = 'Store Portal - ' . $info['label'];
             $p['line_items[0][quantity]']                        = '1';
         }
 

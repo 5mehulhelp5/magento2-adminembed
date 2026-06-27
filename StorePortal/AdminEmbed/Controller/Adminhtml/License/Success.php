@@ -22,7 +22,7 @@ class Success extends Action
     public function execute(): ResultInterface
     {
         $page = $this->resultPageFactory->create();
-        $page->getConfig()->getTitle()->prepend('License Activated — Account Links Manager');
+        $page->getConfig()->getTitle()->prepend('License Activated — Store Portal');
         return $page;
     }
 }
